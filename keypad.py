@@ -1,121 +1,80 @@
+"""
+Keypad.py - a simple implementation of a mxn keypad
+typically used for providing input to microcontrollers
+
+This is a fairly simple implementation and does use
+a blocking scan, so cannot use this for detecting multi-presses
+
+# Author: Arijit Sengupta
+"""
 from machine import Pin
-import time
+import utime
 
-lastChangeTime=0
-keyState=0
-State=0
+default_keys = [
+    ['1','2','3','A'],
+    ['4','5','6','B'],
+    ['7','8','9','C'],
+    ['*','0','#','D']
+]
 
-class KeyPad(object):
-    def __init__(self, row1: int=13, row2: int=12, row3: int=11, row4: int=10, col1: int=9, col2: int=8, col3: int=7, col4: int=6):
-        self._row1 = Pin(row1, Pin.OUT)
-        self._row2 = Pin(row2, Pin.OUT)
-        self._row3 = Pin(row3, Pin.OUT)
-        self._row4 = Pin(row4, Pin.OUT)
-        self._col1 = Pin(col1, Pin.IN, Pin.PULL_DOWN)
-        self._col2 = Pin(col2, Pin.IN, Pin.PULL_DOWN)
-        self._col3 = Pin(col3, Pin.IN, Pin.PULL_DOWN)
-        self._col4 = Pin(col4, Pin.IN, Pin.PULL_DOWN)
+class Keypad:
+    """
+    Keypad is a mxn matrix - read by turning the rows into 
+    outputs and columns into inputs. Read by setting each row
+    high one at a time, then checking which column became high
+    and returning the value at the column.
+
+    These come in many sizes, so keeping it at least somewhat
+    flexible to support keypads of different types, but
+    defaulting to the standard hex keypads that are most
+    commonly available.
+    """
+
+    def __init__(self, row_pins, col_pins):
+        """
+        Initialize the keypad - send in the pin numbers that
+        connect the rows and pin numbers that connect the columns
+        """
+        self._lastscan = 0
+        self._rows = len(row_pins)
+        self._cols = len(col_pins)
+
+        self._row_pins = [None] * self._rows
+        self._col_pins = [None] * self._cols
+        self._keys = default_keys
+
+        for r in range(0, self._rows):
+            self._row_pins[r] = Pin(row_pins[r], Pin.OUT)
+
+        for c in range(0, self._cols):
+            self._col_pins[c] = Pin(col_pins[c], Pin.IN, Pin.PULL_DOWN)
+
+    def setKeys(self, keys = default_keys):
+        """
+        Set the keys if they are not the default
+        hex keypad
+        """
+
+        self._keys = keys
+
+    def scanKey(self,delay=250)->str:
+        """
+        Scan the keypad once and return if anything is detected
+        to be pressed. returns None if nothing is pressed.
         
-    
-    def scan(self):
-        global lastChangeTime
-        nowTime = time.ticks_ms()
-        if(nowTime - lastChangeTime > 10):
-            lastChangeTime = nowTime
-            if(self._readCol()!= 0):
-                State = self._readCol()
-                return State
-            
-    def _readRow1(self):
-        self._setRow(1)
-        if(self._col1.value() == 1):
-            keyState = '1'
-        elif(self._col2.value() == 1):
-            keyState = '2'
-        elif(self._col3.value() == 1):
-            keyState = '3'
-        elif(self._col4.value() == 1):
-            keyState = 'A'
-        else:
-            keyState = 0
-        return keyState
+        To avoid multi-presses, if a request comes from scanKey within
+        delay ms of the last valid scan, we are going to return None
+        """
+        if utime.ticks_ms()-self._lastscan < delay:
+            return None
+        for rowKey in range(self._rows):
+            self._row_pins[rowKey].value(1)
+            for colKey in range(self._cols):
+                if self._col_pins[colKey].value() == 1:
+                    key = self._keys[rowKey][colKey]
+                    self._row_pins[rowKey].value(0)
+                    self._lastscan = utime.ticks_ms()
+                    return(key)
+            self._row_pins[rowKey].value(0)
+        return None
 
-    def _readRow2(self):
-        self._setRow(2)
-        if(self._col1.value() == 1):
-            keyState = '4'
-        elif(self._col2.value() == 1):
-            keyState = '5'
-        elif(self._col3.value() == 1):
-            keyState = '6'
-        elif(self._col4.value() == 1):
-            keyState = 'B'
-        else:
-            keyState = 0 
-        return keyState
-
-    def _readRow3(self):
-        self._setRow(3)
-        if(self._col1.value() == 1):
-            keyState = '7'
-        elif(self._col2.value() == 1):
-            keyState = '8'
-        elif(self._col3.value() == 1):
-            keyState = '9'
-        elif(self._col4.value() == 1):
-            keyState = 'C'
-        else:
-            keyState = 0 
-        return keyState
-    
-    def _readRow4(self):
-        self._setRow(4)
-        if(self._col1.value() == 1):
-            keyState = '*'
-        elif(self._col2.value() == 1):
-            keyState = '0'
-        elif(self._col3.value() == 1):
-            keyState = '#'
-        elif(self._col4.value() == 1):
-            keyState = 'D'
-        else:
-            keyState = 0
-        return keyState
-    
-    def _readCol(self):
-        data_buffer1 = self._readRow1()
-        data_buffer2 = self._readRow2()
-        data_buffer3 = self._readRow3()
-        data_buffer4 = self._readRow4()
-        if (data_buffer1 != 0):
-            return data_buffer1
-        elif (data_buffer2 != 0):
-            return data_buffer2
-        elif (data_buffer3 != 0):
-            return data_buffer3
-        elif (data_buffer4 != 0):
-            return data_buffer4
-
-    def _setRow(self,num):
-        if num == 1:
-            self._row1.on()
-            self._row2.off()
-            self._row3.off()
-            self._row4.off()
-        if num == 2:
-            self._row1.off()
-            self._row2.on()
-            self._row3.off()
-            self._row4.off()
-        if num == 3:
-            self._row1.off()
-            self._row2.off()
-            self._row3.on()
-            self._row4.off()
-        if num == 4:
-            self._row1.off()
-            self._row2.off()
-            self._row3.off()
-            self._row4.on()
-        
-        
