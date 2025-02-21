@@ -11,8 +11,6 @@ class Stopwatch:
             self.start_time = time.time()
             self.started = True
             print("Stopwatch started.")
-        else:
-            print("The stopwatch is already running.")
 
     def reset(self):
         self.started = False
