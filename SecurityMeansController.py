@@ -43,5 +43,3 @@ class SecurityMeansController:
             else:
                 self.password += key
                 self.password_encode += "*"
-
-
