@@ -1,4 +1,5 @@
 from Keypad import Keypad
+from User import User
 
 
 class SecurityMeansController:
@@ -7,16 +8,18 @@ class SecurityMeansController:
         self.user_loged = None
         self.password = ''
         self.password_encode = ''
-        self.users_key_pad = {}        
+        self.users = []
         self.keypad = Keypad(row_pins=row_pins, col_pins=col_pins)
     
     def create_user_with_password(self, password, name):
-        self.users_key_pad[password] = name
+        self.users.append(User(name, password))
     
     def check_access_key_pad(self):
-        name = self.users_key_pad.get(self.password)
-        if name:
-            self.user_loged = name
+        for user in self.users:
+            name = user.match_password(self.password)
+            if name:
+                self.user_loged = name
+                break
     
     def user_authenticated(self):
         if self.user_loged:
